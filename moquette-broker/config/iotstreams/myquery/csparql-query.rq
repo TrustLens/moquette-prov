@@ -1,0 +1,34 @@
+REGISTER QUERY myquery AS
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX ep-plan: <https://w3id.org/ep-plan#>
+PREFIX tl: <https://trustlens.org#>
+PREFIX ex: <http://example.com/mqtt-plan#>
+Construct {
+ ?elementOfTrace ?s ?o. 
+ ?bundle ?x ?y.
+ }
+ 
+FROM STREAM <http://iotstreams> [RANGE TRIPLES 54]
+FROM <https://trustlens.org/trustedAgents>
+WHERE {
+   ?agentEntity ep-plan:isElementOfTrace ?bundle;
+   ep-plan:correspondsToVariable ex:AffectedAgent;
+   prov:alternateOf ?agent.
+   
+   ?activity prov:used ?topic;
+   ep-plan:isElementOfTrace ?bundle.
+   
+   ?result prov:wasGeneratedBy ?activity;
+   ep-plan:isElementOfTrace ?bundle;
+   prov:hadMember ?agentEntity.
+  
+   ?topic ep-plan:isElementOfTrace ?bundle;
+   ep-plan:correspondsToVariable ex:Topic;
+   prov:value "/test".
+   
+   ?elementOfTrace ep-plan:isElementOfTrace ?bundle.
+   ?elementOfTrace ?s ?o. 
+   ?bundle ?x ?y.
+   
+FILTER NOT EXISTS {?agent a tl:TrustedAgent.}  
+}
