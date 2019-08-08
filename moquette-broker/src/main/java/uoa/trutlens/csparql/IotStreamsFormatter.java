@@ -50,9 +50,6 @@ class IotStreamsFormatter extends ResultFormatter {
     /** Name picked up from directory - used for logging */
     private final String queryName;
     
-    /** The SPARQL update queries to execute */
-    private EnumMap<Stage, HashMap<String, String>> sparqlUpdateQueries =
-            new EnumMap<Stage, HashMap<String, String>>(Stage.class);
 
     /** Model containing the ontology/static knowledge */
     private Optional<OntModel> staticKnowledge = Optional.empty();
@@ -75,10 +72,7 @@ class IotStreamsFormatter extends ResultFormatter {
     IotStreamsFormatter(final String queryName, final Consumer<Model> inferredTripleConsumer) {
         this.queryName = queryName;
         this.inferredTripleConsumer = inferredTripleConsumer;
-        //Initialize SPARQL update query collections
-        for (Stage s : Stage.values()) {
-            this.sparqlUpdateQueries.put(s, new HashMap<String, String>());
-        }
+
     }
     
     /**
@@ -96,14 +90,14 @@ class IotStreamsFormatter extends ResultFormatter {
             .forEach(s -> this.m.get().add(s));
       
         this.inferredTripleConsumer.accept(this.m.get());
-        if (resultCounter%10==0) {
+      //  if (resultCounter%5==0) {
         System.out.println("C-SPARQL result : " + resultCounter++);
         System.out.println("C-SPARQL result : " + System.currentTimeMillis());
-        }
-        else {
-        	resultCounter++;
-        }
-       // this.infer();
+       // }
+        //else {
+        	//resultCounter++;
+        //}
+       
     }
     
     /**
@@ -133,122 +127,5 @@ class IotStreamsFormatter extends ResultFormatter {
         }
     }
 
-    /**
-     * Runs inference query from alert_query folder.
-     */
-    private void infer() {
-    	final Model workingCopy = ModelFactory.createDefaultModel();
-    	workingCopy.add(this.m.get());
-    	
-    
-    	//add static knowledge from init.ttl
-    	workingCopy.add(this.staticKnowledge.get());	
-    	// workingCopy.write(System.out,"TTL");
-        	
-        String queryString = "SELECT (COUNT(?agent) AS ?agents) WHERE { ?agent a <https://w3id.org/ep-plan#Agent>; <https://w3id.org/ep-plan#isElementOfTrace> ?bundle. ?col <http://www.w3.org/ns/prov#hadMember> ?agent. } " ;
-        Query query = QueryFactory.create(queryString) ;
-        try (QueryExecution qexec = QueryExecutionFactory.create(query, workingCopy)) {
-          ResultSet results = qexec.execSelect() ;
-          for ( ; results.hasNext() ; )
-          {
-            QuerySolution soln = results.nextSolution() ;
-          //  RDFNode x = soln.get("agent") ;       // Get a result variable by name.
-           // Resource r = soln.getResource("VarR") ; // Get a result variable - must be a resource
-            Literal l = soln.getLiteral("agents") ;   // Get a result variable - must be a literal
-            System.out.println ("Agent count " +l.getInt());
-          }
-        }
-    	     
-         queryString = "SELECT (COUNT(?agent) AS ?agents) WHERE { ?agent a <https://trustlens.org#TrustedAgent>. ?agent a <https://w3id.org/ep-plan#Agent>. ?col <http://www.w3.org/ns/prov#hadMember> ?agent. } " ;
-         query = QueryFactory.create(queryString) ;
-        try (QueryExecution qexec = QueryExecutionFactory.create(query, workingCopy)) {
-          ResultSet results = qexec.execSelect() ;
-          for ( ; results.hasNext() ; )
-          {
-            QuerySolution soln = results.nextSolution() ;
-          //  RDFNode x = soln.get("agent") ;       // Get a result variable by name.
-           // Resource r = soln.getResource("VarR") ; // Get a result variable - must be a resource
-            Literal l = soln.getLiteral("agents") ;   // Get a result variable - must be a literal
-            System.out.println ("Trusted agent count " +l.getInt());
-          }
-        }
-        
-        
-    	
-    	
-    	
-    	/*
-    	m.get().contains(arg0, arg1, arg2)
-    	
-    	
-    	
-    	final Model workingCopy = ModelFactory.createDefaultModel();
-        final long s = workingCopy.size();
-        
-        workingCopy.add(this.m.get());
-       
-            //Use inferred triples from latest successful inference
-            workingCopy.add(this.lastInference.get());
-            this.sparqlUpdateQueries.get(Stage.WARM)
-                .forEach((name, query) -> update(name, query, workingCopy));
-            workingCopy.remove(this.m.get());
-            workingCopy.remove(this.lastInference.get());
-            if (workingCopy.size() > s) { //we inferred something
-                this.lastInference = Optional.of(workingCopy);
-                this.inferredTripleConsumer.accept(workingCopy);
-            }
-        */    
-       
-    }
-    
-    /**
-     * Parse&execute a SPARQL update query, logging stats about the execution.
-     * @param name Name of the query, for logging
-     * @param query The SPARQL text
-     * @param provmod The model to update
-     */
-    private void update(final String name, final String query, final Model provmod) {
-        final long beforeSize = provmod.size();
-        final Instant before = Instant.now();
-        UpdateAction.parseExecute(query, provmod);
-        final Instant after = Instant.now();
-        final long afterSize = provmod.size();
-        Logging.info(String.format(
-                "Query %s update %s: %d ms ; %d triples generated",
-                this.queryName,
-                name, 
-                Duration.between(before, after).toMillis(),
-                afterSize - beforeSize));
-    }
-
-    /**
-     * Adds a SPARQL update query to the given stage.
-     * @param stage Must be "coldstart" or "warm" to decide in which case the query will be executed.
-     * @param name name of this update
-     * @param content The text of the query.
-     */
-    public void addSparql(final String stage, final String name, final String content) {
-        this.sparqlUpdateQueries.get(Stage.valueOf(stage.toUpperCase())).put(
-                String.format("%s/%s", stage, name), 
-                content);
-    }
-
-    /**
-     * Loads the given ontology into the internal Jena model.
-     * @param ontology Ontology, in TTL
-     */
-    public void setOntology(final String ontology) {
-        this.staticKnowledge = Optional.of(ModelFactory.createOntologyModel());
-        staticKnowledge.get().read(new ByteArrayInputStream(ontology.getBytes(StandardCharsets.ISO_8859_1)), null, "TTL");
-    }
-    
-    /**
-     * Stages in which SPARQL update queries are executed
-     */
-    private enum Stage {
-      /** Coldstart: Nothing has been inferred yet */
-      COLDSTART,
-      /** Warm: Some triples have already been inferred */
-      WARM;
-    };
+   
 }

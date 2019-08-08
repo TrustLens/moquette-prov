@@ -1,13 +1,36 @@
 
-
-
-plugins {
-    id 'java'
-    id 'maven-publish'
+buildscript {
+    ext {
+          nettyVersion = '4.1.22.Final'
+    }
+    repositories {
+    
+}
+    
 }
 
+
+
+apply plugin: 'eclipse'
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+
+eclipse {
+    project {
+        name = 'moquette-broker-prov'
+    }
+}
+
+
+jar {
+    baseName = 'moquette_with_prov'
+    version = '0.0.1-SNAPSHOT'
+}
+
+sourceCompatibility = 1.8
+
 repositories {
-    mavenLocal()
+   mavenLocal()
     maven {
         url = 'http://streamreasoning.org/maven/'
     }
@@ -16,7 +39,7 @@ repositories {
         url = 'http://repo.maven.apache.org/maven2'
     }
 }
-description = 'Moquette - broker'
+
 dependencies {
     compile group: 'io.netty', name: 'netty-common', version: nettyVersion
     compile group: 'io.netty', name: 'netty-buffer', version: nettyVersion
@@ -59,3 +82,6 @@ dependencies {
 
     testRuntime group: 'io.netty', name: 'netty-tcnative', version: '2.0.10.Final', classifier: 'linux-x86_64'
 }
+
+description = 'Moquette - broker-prov'
+
